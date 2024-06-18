@@ -2,16 +2,12 @@ import streamlit as st
 import torch
 import torch.nn as nn
 import numpy as np
-
 import pandas as pd
 import joblib
-
 from sklearn.preprocessing import LabelEncoder
-
-from transformers import BertTokenizer, BertConfig, BertModel, BertForSequenceClassification
+from transformers import BertTokenizer, BertConfig, BertForSequenceClassification
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 
 # 自定义BERT模型
 class CustomBertForSequenceClassification(BertForSequenceClassification):
@@ -70,10 +66,13 @@ for line in lines:
         num_labels = int(line.split(": ")[1].strip())
 
 # 加载自定义模型权重
-config = BertConfig.from_pretrained('bert-base-chinese', num_labels=num_labels)
-model = CustomBertForSequenceClassification.from_pretrained('bert-base-chinese', config=config)
-model.load_state_dict(torch.load('model.pth'))  # 加载训练好的模型权重
-model.eval()
+def load_custom_model_weights(file_path):
+    config = BertConfig.from_pretrained('bert-base-chinese', num_labels=num_labels)
+    model = CustomBertForSequenceClassification.from_pretrained('bert-base-chinese', config=config)
+    model.load_state_dict(torch.load(file_path))  # 加载训练好的模型权重
+    model.eval()
+
+    return model
 
 # 主函数
 def main():
@@ -81,13 +80,20 @@ def main():
 
     # 侧边栏设置日期和时间格式
     with st.sidebar:
-        # date_format = st.selectbox("选择日期格式：", ['YYYY-MM-DD', 'MM/DD/YYYY', 'DD-MM-YYYY'])
-        # time_format = st.selectbox("选择时间格式：", ['HH:MM:SS', 'HH:MM', 'HH'])
+        # 侧边栏上传文件
+        st.write("### 上传模型权重文件")
+        uploaded_file = st.sidebar.file_uploader("选择模型权重文件", type=['pth'])
+
+        # 如果有上传文件，则加载模型权重
+        model = None
+        if uploaded_file:
+            st.sidebar.success("成功上传文件: {}".format(uploaded_file.name))
+            st.sidebar.write("文件大小 (bytes):", uploaded_file.size)
+            model = load_custom_model_weights(uploaded_file)
 
         # 用户选择上传CSV文件或手动输入数据
         st.write("### 选择数据输入方式：")
         option = st.radio("选择：", ('上传CSV文件', '手动输入数据'))
-
 
     if option == '上传CSV文件':
         # 上传 CSV 文件
@@ -100,8 +106,8 @@ def main():
             st.write(f"### 使用预设数据{use_preset_data}：")
             st.write(df_preset.head())
 
-            if st.button("开始预测（预设数据）"):
-                predict_and_display_results(df_preset)
+            if st.button("开始预测（预设数据）") and model is not None:
+                predict_and_display_results(df_preset, model)
         else:
             uploaded_file = st.file_uploader("上传CSV文件", type=['csv'])
             if uploaded_file is not None:
@@ -113,8 +119,8 @@ def main():
                 st.write(df.head())
                 
                 # 执行预测并显示结果
-                if st.button("开始预测"):
-                    predict_and_display_results(df)
+                if st.button("开始预测") and model is not None:
+                    predict_and_display_results(df, model)
     
     elif option == '手动输入数据':
         num_samples = st.number_input("输入数据行数：", min_value=1, step=1, value=1)
@@ -141,15 +147,15 @@ def main():
             st.write(df)
 
             # 执行预测并显示结果
-            if st.button("开始预测"):
+            if st.button("开始预测") and model is not None:
                 st.write("### 推理结果：")
-                predict_and_display_results(df)
+                predict_and_display_results(df, model)
 
 
 # 执行预测并显示结果
-def predict_and_display_results(df):
+def predict_and_display_results(df, model):
     input_ids, attention_mask, month, hour = preprocess_data(df)
-    major_labels, minor_labels = predict(input_ids, attention_mask, month, hour)
+    major_labels, minor_labels = predict(input_ids, attention_mask, month, hour, model)
 
     for i in range(len(df)):
         st.write(f"Sample {i+1}:")
@@ -177,7 +183,7 @@ def preprocess_data(data):
     return input_ids, attention_mask, month, hour
 
 # 执行推理函数
-def predict(input_ids, attention_mask, month, hour):
+def predict(input_ids, attention_mask, month, hour, model):
     total_samples = len(input_ids)
     major_labels_list = []
     minor_labels_list = []
