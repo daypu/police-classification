@@ -1,9 +1,9 @@
-datasets==2.20.0
+aligo==6.2.4
 joblib==1.3.1
+nlpcda==2.5.8
 numpy==1.25.1
 pandas==2.0.3
 scikit_learn==1.4.2
 streamlit==1.32.0
 torch==2.3.0
-tqdm==4.66.4
 transformers==4.40.1

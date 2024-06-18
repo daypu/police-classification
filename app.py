@@ -98,7 +98,7 @@ def main():
     if option == '上传CSV文件':
         # 上传 CSV 文件
         st.write("请确保csv表格包含列date, time, hour, content")
-        use_preset_data = st.selectbox("使用预设数据：", ['不使用', 'data_cleaned.csv'])
+        use_preset_data = st.selectbox("使用预设数据：", ['不使用', 'data/data_cleaned.csv'])
 
         if use_preset_data != "不使用":
             df_preset = pd.read_csv(use_preset_data, encoding='utf-8')
